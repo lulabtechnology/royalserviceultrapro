@@ -3,8 +3,8 @@ export const revalidate = 0;
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <section className="min-h-screen bg-white">
-      {children}
-    </section>
+    <html lang="es">
+      <body className="min-h-screen bg-white">{children}</body>
+    </html>
   );
 }
