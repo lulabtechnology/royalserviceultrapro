@@ -1,34 +1,38 @@
 export type Lang = "es" | "en";
 
-export const LANGS: Lang[] = ["es", "en"];
-
-export function isLang(value: string): value is Lang {
-  return (LANGS as string[]).includes(value);
-}
-
-const dict = {
+const DICT: Record<Lang, Record<string, string>> = {
   es: {
+    heroTitle: "Royal Service",
+    heroSubtitle: "Catálogo profesional con carrito. Finaliza por WhatsApp o correo.",
+    ctaCatalog: "Ver catálogo",
+
     navHome: "Inicio",
     navCatalog: "Catálogo",
     navContact: "Contacto",
-    navPolicies: "Políticas",
-    heroTitle: "Catálogo profesional, pedido por WhatsApp",
-    heroSubtitle: "Agrega productos al carrito y finaliza sin pagar: enviamos el pedido por WhatsApp y correo.",
-    ctaCatalog: "Ver catálogo",
-    comingSoon: "En FASE 2 conectamos Firebase y cargamos productos reales."
+    navPolicies: "Políticas"
   },
   en: {
+    heroTitle: "Royal Service",
+    heroSubtitle: "Professional catalog with cart. Checkout via WhatsApp or email.",
+    ctaCatalog: "View catalog",
+
     navHome: "Home",
     navCatalog: "Catalog",
     navContact: "Contact",
-    navPolicies: "Policies",
-    heroTitle: "Professional catalog, order via WhatsApp",
-    heroSubtitle: "Add items to cart and checkout without payment: we send the order via WhatsApp and email.",
-    ctaCatalog: "View catalog",
-    comingSoon: "In PHASE 2 we connect Firebase and load real products."
+    navPolicies: "Policies"
   }
-} as const;
+};
 
-export function t(lang: Lang, key: keyof typeof dict.es) {
-  return dict[lang][key];
+export function normalizeLang(lang: any): Lang {
+  return lang === "en" ? "en" : "es";
+}
+
+/**
+ * ✅ Nunca crashea:
+ * - si lang viene raro -> fallback "es"
+ * - si la key no existe -> devuelve la key (para que se note y no explote)
+ */
+export function t(lang: any, key: string): string {
+  const l = normalizeLang(lang);
+  return DICT[l]?.[key] ?? DICT.es?.[key] ?? key;
 }
