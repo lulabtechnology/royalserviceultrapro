@@ -1,134 +1,63 @@
-import { fbDb } from "@/lib/firebase/client";
-import {
-  collection,
-  getDocs,
-  getDoc,
-  doc,
-  query,
-  where,
-  orderBy,
-  limit
-} from "firebase/firestore";
-import type { Category, Product, Promotion } from "./types";
+import "server-only";
+import { getAdminDb } from "@/lib/firebase/admin";
+import { Timestamp } from "firebase-admin/firestore";
 
-function asString(v: any, fallback = ""): string {
-  return typeof v === "string" ? v : fallback;
-}
-function asBool(v: any, fallback = false): boolean {
-  return typeof v === "boolean" ? v : fallback;
-}
-function asNum(v: any, fallback = 0): number {
-  return typeof v === "number" && Number.isFinite(v) ? v : fallback;
-}
-function asStringArray(v: any): string[] {
-  if (!Array.isArray(v)) return [];
-  return v.filter((x) => typeof x === "string" && x.trim().length > 0);
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+type WithId<T> = T & { id: string };
+
+export async function getVisibleCategories() {
+  const db = getAdminDb();
+  const snap = await db
+    .collection("categories")
+    .where("isVisible", "==", true)
+    .orderBy("sortOrder", "asc")
+    .get();
+
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
 }
 
-export async function getVisibleCategories(): Promise<Category[]> {
-  const q = query(
-    collection(fbDb, "categories"),
-    where("isVisible", "==", true),
-    orderBy("sortOrder", "asc")
-  );
-  const snap = await getDocs(q);
+export async function getPublishedProducts() {
+  const db = getAdminDb();
 
-  return snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      nameEs: asString(data.nameEs),
-      nameEn: asString(data.nameEn),
-      slug: asString(data.slug),
-      isVisible: asBool(data.isVisible, true),
-      sortOrder: asNum(data.sortOrder, 0)
-    };
-  });
+  // 1) categorías visibles
+  const cats = await getVisibleCategories();
+  const visibleCategoryIds = cats.map((c) => c.id);
+
+  if (visibleCategoryIds.length === 0) return [];
+
+  // 2) productos published dentro de categorías visibles
+  // (IN tiene límite 10; tú tienes 3 categorías, perfecto)
+  const snap = await db
+    .collection("products")
+    .where("status", "==", "published")
+    .where("categoryId", "in", visibleCategoryIds)
+    .orderBy("updatedAt", "desc")
+    .get();
+
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
 }
 
-export async function getPublishedProducts(categoryId?: string): Promise<Product[]> {
-  const base = [
-    where("status", "==", "published"),
-    orderBy("updatedAt", "desc")
-  ] as any[];
+export async function getActivePromotions() {
+  const db = getAdminDb();
 
-  if (categoryId) base.unshift(where("categoryId", "==", categoryId));
+  // Query simple que coincide con índices típicos
+  const snap = await db
+    .collection("promotions")
+    .where("isActive", "==", true)
+    .orderBy("startAt", "desc")
+    .limit(20)
+    .get();
 
-  const q = query(collection(fbDb, "products"), ...base);
-  const snap = await getDocs(q);
+  const now = Timestamp.now();
 
-  return snap.docs.map((d) => normalizeProduct(d.id, d.data()));
-}
-
-export async function getProductById(productId: string): Promise<Product | null> {
-  const ref = doc(fbDb, "products", productId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
-
-  const p = normalizeProduct(snap.id, snap.data());
-
-  // Público: SOLO published (evita filtrar mal y dejar vacío)
-  if (p.status !== "published") return null;
-  return p;
-}
-
-export async function getActivePromotions(): Promise<Promotion[]> {
-  const q = query(
-    collection(fbDb, "promotions"),
-    where("isActive", "==", true),
-    orderBy("startAt", "desc"),
-    limit(10)
-  );
-  const snap = await getDocs(q);
-
-  return snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      titleEs: asString(data.titleEs),
-      titleEn: asString(data.titleEn),
-      isActive: asBool(data.isActive, true),
-      startAt: data.startAt ?? null,
-      endAt: data.endAt ?? null,
-      imageUrl: typeof data.imageUrl === "string" ? data.imageUrl : null,
-      link: typeof data.link === "string" ? data.link : null
-    };
-  });
-}
-
-function normalizeProduct(id: string, data: any): Product {
-  const imageUrls = asStringArray(data.imageUrls); // evita [""]
-
-  const specsRaw = Array.isArray(data.specs) ? data.specs : [];
-  const specs = specsRaw
-    .map((row: any) => ({
-      label: asString(row?.label).trim(),
-      value: asString(row?.value).trim()
-    }))
-    .filter((r: any) => r.label.length > 0 && r.value.length > 0);
-
-  return {
-    id,
-    nameEs: asString(data.nameEs),
-    nameEn: asString(data.nameEn),
-    code: asString(data.code),
-    shortDescEs: asString(data.shortDescEs),
-    shortDescEn: asString(data.shortDescEn),
-    categoryId: asString(data.categoryId),
-
-    imageUrls,
-    specs,
-    techPdfUrl: typeof data.techPdfUrl === "string" ? data.techPdfUrl : null,
-
-    status: (asString(data.status, "draft") as any),
-    promoTag: (data.promoTag === "OFERTA" || data.promoTag === "PROMO") ? data.promoTag : null,
-
-    trackStock: asBool(data.trackStock, false),
-    stockQty: asNum(data.stockQty, 0),
-    lowStockThreshold: asNum(data.lowStockThreshold, 0),
-    allowBackorder: asBool(data.allowBackorder, false),
-
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt
-  };
+  // startAt/endAt opcionales → filtramos en código (sin OR complicados)
+  return snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as any) }))
+    .filter((p: any) => {
+      const startOk = !p.startAt || p.startAt.toMillis?.() <= now.toMillis();
+      const endOk = !p.endAt || p.endAt.toMillis?.() >= now.toMillis();
+      return startOk && endOk;
+    });
 }
