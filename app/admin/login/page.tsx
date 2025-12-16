@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { adminLogin } from "@/app/admin/_lib/adminAuth";
-import { isEmailAdmin } from "@/lib/admin/allowlist";
-import { SITE } from "@/lib/site";
+
+const PRIMARY = "#7E0D05";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -17,13 +16,28 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setErr(null);
     setLoading(true);
+
     try {
-      const user = await adminLogin(email.trim(), pass);
-      const ok = await isEmailAdmin(user.email || "");
-      if (!ok) {
-        setErr("Este usuario no está autorizado como admin.");
+      // ✅ Lazy imports: evita crashes al cargar la página
+      const { fbAuth, fbDb } = await import("@/lib/firebase/client");
+      const { signInWithEmailAndPassword, signOut } = await import("firebase/auth");
+      const { doc, getDoc } = await import("firebase/firestore");
+
+      const cred = await signInWithEmailAndPassword(fbAuth, email.trim(), pass);
+      const userEmail = cred.user.email || "";
+
+      // ✅ Check allowlist: admins/{email}.isActive === true
+      const ref = doc(fbDb, "admins", userEmail);
+      const snap = await getDoc(ref);
+
+      const isActive = snap.exists() && snap.data()?.isActive === true;
+
+      if (!isActive) {
+        await signOut(fbAuth);
+        setErr("No autorizado. Tu email no está en la allowlist de admins.");
         return;
       }
+
       router.replace("/admin");
     } catch (ex: any) {
       setErr(ex?.message ?? "Error al iniciar sesión");
@@ -33,11 +47,9 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-6 py-10">
+    <div className="mx-auto max-w-md space-y-6 p-6">
       <h1 className="text-2xl font-semibold">Admin</h1>
-      <p className="text-sm text-zinc-600">
-        Inicia sesión para administrar el catálogo.
-      </p>
+      <p className="text-sm text-zinc-600">Inicia sesión para administrar el catálogo.</p>
 
       <form onSubmit={onSubmit} className="space-y-3 rounded-2xl border border-zinc-200 p-6">
         <label className="block text-sm font-semibold">Email</label>
@@ -63,7 +75,7 @@ export default function AdminLoginPage() {
         <button
           disabled={loading}
           className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
-          style={{ backgroundColor: SITE.colors.primary }}
+          style={{ backgroundColor: PRIMARY }}
         >
           {loading ? "Entrando..." : "Entrar"}
         </button>
