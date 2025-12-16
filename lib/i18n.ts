@@ -1,5 +1,9 @@
 export type Lang = "es" | "en";
 
+export function isLang(x: any): x is Lang {
+  return x === "es" || x === "en";
+}
+
 const DICT: Record<Lang, Record<string, string>> = {
   es: {
     heroTitle: "Royal Service",
@@ -30,7 +34,7 @@ export function normalizeLang(lang: any): Lang {
 /**
  * ✅ Nunca crashea:
  * - si lang viene raro -> fallback "es"
- * - si la key no existe -> devuelve la key (para que se note y no explote)
+ * - si la key no existe -> devuelve la key
  */
 export function t(lang: any, key: string): string {
   const l = normalizeLang(lang);
