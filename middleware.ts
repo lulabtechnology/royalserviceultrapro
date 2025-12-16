@@ -1,29 +1,41 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { LANGS } from "@/lib/i18n";
+import { NextRequest, NextResponse } from "next/server";
+
+const LOCALES = ["es", "en"] as const;
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Ignorar rutas internas/archivos
+  // ✅ NO tocar Admin ni API ni assets
   if (
-    pathname.startsWith("/_next") ||
+    pathname.startsWith("/admin") ||
     pathname.startsWith("/api") ||
-    pathname.includes(".")
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/robots.txt") ||
+    pathname.startsWith("/sitemap") ||
+    pathname.startsWith("/public")
   ) {
     return NextResponse.next();
   }
 
-  // Si ya tiene /es o /en, seguir normal
-  const hasLang = LANGS.some((l) => pathname === `/${l}` || pathname.startsWith(`/${l}/`));
-  if (hasLang) return NextResponse.next();
+  // Si ya viene con /es o /en, dejar pasar
+  const first = pathname.split("/")[1];
+  if (LOCALES.includes(first as any)) return NextResponse.next();
 
-  // Redirect default a /es
+  // Root -> /es
+  if (pathname === "/") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/es";
+    return NextResponse.redirect(url);
+  }
+
+  // Cualquier ruta pública sin idioma -> prefijar /es
   const url = req.nextUrl.clone();
-  url.pathname = pathname === "/" ? "/es" : `/es${pathname}`;
+  url.pathname = `/es${pathname}`;
   return NextResponse.redirect(url);
 }
 
+// ✅ Importante: que el middleware no se aplique a /admin ni /api
 export const config = {
-  matcher: ["/((?!_next|api).*)"]
+  matcher: ["/((?!admin|api|_next|favicon.ico).*)"]
 };
