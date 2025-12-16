@@ -55,3 +55,15 @@ export function adminAuth() {
 export function adminStorage() {
   return getStorage(getAdminApp());
 }
+// ✅ Aliases retro-compatibles (para no romper imports viejos)
+export function getAdminDb() {
+  return adminDb();
+}
+
+export function getAdminAuth() {
+  return adminAuth();
+}
+
+export function getAdminStorage() {
+  return adminStorage();
+}
