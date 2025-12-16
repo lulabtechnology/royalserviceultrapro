@@ -6,7 +6,8 @@ import { Timestamp } from "firebase-admin/firestore";
 
 export async function GET() {
   try {
-    await adminDb.collection("admins").doc("__healthcheck__").set(
+    // OJO: NO usar IDs que empiecen con "__"
+    await adminDb.collection("admins").doc("healthcheck").set(
       { checkedAt: Timestamp.now() },
       { merge: true }
     );
