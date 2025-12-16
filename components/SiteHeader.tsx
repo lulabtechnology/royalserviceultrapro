@@ -1,43 +1,44 @@
 import Link from "next/link";
 import { SITE } from "@/lib/site";
-import { Lang, t } from "@/lib/i18n";
+import { normalizeLang, t } from "@/lib/i18n";
 
-export function SiteHeader({ lang }: { lang: Lang }) {
+export function SiteHeader({ lang }: { lang: any }) {
+  const l = normalizeLang(lang);
+
   return (
     <header className="border-b border-zinc-200">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <Link href={`/${lang}`} className="flex items-center gap-3">
+        <Link href={`/${l}`} className="flex items-center gap-3">
           <div
-            className="h-9 w-9 rounded-md"
+            className="h-10 w-10 rounded-xl"
             style={{ backgroundColor: SITE.colors.primary }}
-            aria-hidden="true"
           />
           <div className="leading-tight">
-            <div className="text-sm font-semibold">{SITE.brandName}</div>
-            <div className="text-xs text-zinc-500">Catálogo + carrito</div>
+            <div className="font-semibold">{t(l, "heroTitle")}</div>
+            <div className="text-xs text-zinc-600">Catálogo + carrito</div>
           </div>
         </Link>
 
         <nav className="flex items-center gap-4 text-sm">
-          <Link className="hover:underline" href={`/${lang}`}>
-            {t(lang, "navHome")}
+          <Link className="hover:underline" href={`/${l}`}>
+            {t(l, "navHome")}
           </Link>
-          <Link className="hover:underline" href={`/${lang}/catalog`}>
-            {t(lang, "navCatalog")}
+          <Link className="hover:underline" href={`/${l}/catalog`}>
+            {t(l, "navCatalog")}
           </Link>
-          <Link className="hover:underline" href={`/${lang}/contact`}>
-            {t(lang, "navContact")}
+          <Link className="hover:underline" href={`/${l}/contact`}>
+            {t(l, "navContact")}
           </Link>
-          <Link className="hover:underline" href={`/${lang}/policies`}>
-            {t(lang, "navPolicies")}
+          <Link className="hover:underline" href={`/${l}/policies`}>
+            {t(l, "navPolicies")}
           </Link>
 
-          <div className="ml-2 flex items-center gap-2 rounded-full border border-zinc-200 px-2 py-1 text-xs">
-            <Link href="/es" className={lang === "es" ? "font-semibold" : "text-zinc-500"}>
+          <div className="ml-2 flex items-center gap-2 rounded-xl border border-zinc-200 px-2 py-1">
+            <Link className={l === "es" ? "font-semibold" : "text-zinc-500"} href="/es">
               ES
             </Link>
             <span className="text-zinc-300">|</span>
-            <Link href="/en" className={lang === "en" ? "font-semibold" : "text-zinc-500"}>
+            <Link className={l === "en" ? "font-semibold" : "text-zinc-500"} href="/en">
               EN
             </Link>
           </div>
